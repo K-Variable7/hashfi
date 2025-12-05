@@ -97,8 +97,10 @@ templates = Jinja2Templates(directory=templates_dir)
 session_manager = SessionManager()
 monitor = ThreatMonitor(threshold=0.9)
 monitor.add_sensor(SystemSensor())
-# Monitor the project root for unauthorized changes
-monitor.add_sensor(FileIntegritySensor(target_dir=project_root))
+# Monitor the project root for unauthorized changes (skip in serverless)
+is_serverless = os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+if not is_serverless:
+    monitor.add_sensor(FileIntegritySensor(target_dir=project_root))
 
 logs = []
 
@@ -150,12 +152,13 @@ def monitor_loop():
         time.sleep(1)
 
 
-# Start monitor in background thread
-
-monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
-monitor_thread.start()
-deadman_thread = threading.Thread(target=deadman_loop, daemon=True)
-deadman_thread.start()
+# Start monitor in background thread (skip in serverless environments)
+is_serverless = os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+if not is_serverless:
+    monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
+    monitor_thread.start()
+    deadman_thread = threading.Thread(target=deadman_loop, daemon=True)
+    deadman_thread.start()
 
 
 # Callback for auto-burn
@@ -183,7 +186,10 @@ async def read_root(request: Request):
 async def get_status():
     record_activity()
     # Cool Feature: Network Connection Count
-    net_connections = len(psutil.net_connections())
+    try:
+        net_connections = len(psutil.net_connections())
+    except Exception:
+        net_connections = 0  # Fallback for serverless environments
 
     return {
         "is_active": session_manager.is_active,
