@@ -501,6 +501,22 @@
                 <p style="font-size: 0.8rem; color: #888;">For maximum anonymity, use Tor Browser.</p>
                 <button class="vault-btn" onclick="openTorGuide()">Tor Guide</button>
             </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>PGP Key Generator</h3>
+                <p style="font-size: 0.8rem; color: #888;">Generate PGP key pair for email encryption.</p>
+                <label>Email: <input type="email" id="pgpEmail" placeholder="your@email.com"></label>
+                <br>
+                <button class="vault-btn" onclick="generatePGP()">Generate Keys</button>
+                <div id="pgpKeys" style="margin-top: 0.5rem; color: #00ff41; font-family: monospace; white-space: pre-wrap;"></div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Cypherpunk Mode</h3>
+                <p style="font-size: 0.8rem; color: #888;">Toggle sound effects and enhanced visuals.</p>
+                <label><input type="checkbox" id="soundToggle" checked> Enable Sounds</label>
+                <label><input type="checkbox" id="glitchToggle" checked> Enhanced Glitch</label>
+            </div>
                 async function shredFile() {
                     const filePath = document.getElementById('shredFilePath').value;
                     const resultDiv = document.getElementById('shredResult');
@@ -857,6 +873,7 @@
             const pwdDiv = document.getElementById('generatedPwd');
             pwdDiv.innerText = password;
             copyToClipboard(password);
+            playSound();
         }
 
         // Secure Notes
@@ -994,6 +1011,53 @@
         function openTorGuide() {
             window.open('https://www.torproject.org/download/', '_blank');
         }
+
+        // PGP Key Generation
+        async function generatePGP() {
+            const email = document.getElementById('pgpEmail').value;
+            if (!email) {
+                alert('Enter email.');
+                return;
+            }
+            const keyPair = await window.crypto.subtle.generateKey(
+                {
+                    name: 'RSA-OAEP',
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                    hash: 'SHA-256'
+                },
+                true,
+                ['encrypt', 'decrypt']
+            );
+            const publicKey = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
+            const privateKey = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+            const pubB64 = btoa(String.fromCharCode(...new Uint8Array(publicKey)));
+            const privB64 = btoa(String.fromCharCode(...new Uint8Array(privateKey)));
+            const keysDiv = document.getElementById('pgpKeys');
+            keysDiv.innerText = `Public Key:\n-----BEGIN PUBLIC KEY-----\n${pubB64.match(/.{1,64}/g).join('\n')}\n-----END PUBLIC KEY-----\n\nPrivate Key (Keep Secret!):\n-----BEGIN PRIVATE KEY-----\n${privB64.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----`;
+            playSound();
+        }
+
+        // Cypherpunk Mode Toggles
+        function playSound() {
+            if (document.getElementById('soundToggle').checked) {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                oscillator.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
+        document.getElementById('glitchToggle').addEventListener('change', function() {
+            const body = document.body;
+            if (this.checked) {
+                body.classList.add('enhanced-glitch');
+            } else {
+                body.classList.remove('enhanced-glitch');
+            }
+        });
 
         // Clipboard Sentinel Logic
         function copyToClipboard(text) {

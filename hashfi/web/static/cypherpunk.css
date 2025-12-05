@@ -102,3 +102,31 @@ button:hover, .btn:hover {
         overflow-y: auto;
     }
 }
+
+/* Enhanced Glitch */
+.enhanced-glitch {
+    animation: enhanced-glitch 2s infinite linear alternate-reverse;
+}
+
+@keyframes enhanced-glitch {
+    0% { 
+        text-shadow: 2px 0 #ff00c8, -2px 0 #00fff9, 0 2px #ff00c8, 0 -2px #00fff9;
+        transform: translate(1px, 1px);
+    }
+    25% { 
+        text-shadow: -2px 0 #ff00c8, 2px 0 #00fff9, 0 -2px #ff00c8, 0 2px #00fff9;
+        transform: translate(-1px, -1px);
+    }
+    50% { 
+        text-shadow: 1px 1px #ff00c8, -1px -1px #00fff9, 1px -1px #ff00c8, -1px 1px #00fff9;
+        transform: translate(0.5px, -0.5px);
+    }
+    75% { 
+        text-shadow: -1px 1px #ff00c8, 1px -1px #00fff9, -1px -1px #ff00c8, 1px 1px #00fff9;
+        transform: translate(-0.5px, 0.5px);
+    }
+    100% { 
+        text-shadow: 2px 0 #ff00c8, -2px 0 #00fff9, 0 2px #ff00c8, 0 -2px #00fff9;
+        transform: translate(1px, 1px);
+    }
+}
