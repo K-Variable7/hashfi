@@ -79,3 +79,26 @@ button:hover, .btn:hover {
 }
 
 /* Optional: Add more cypherpunk/terminal effects as needed */
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    body {
+        height: auto;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    .container {
+        width: 95%;
+        max-height: none;
+        overflow-y: visible;
+        padding: 1rem;
+    }
+    input, textarea, select, button {
+        font-size: 1rem;
+        padding: 0.5em;
+    }
+    .tab-content {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+}

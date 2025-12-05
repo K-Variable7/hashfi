@@ -448,6 +448,19 @@
                     <input type="checkbox" id="clipboardSentinel" checked> Enable Auto-Clear (30s)
                 </label>
             </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Password Generator</h3>
+                <p style="font-size: 0.8rem; color: #888;">Generate cryptographically secure passwords.</p>
+                <label>Length: <input type="number" id="pwdLength" value="16" min="8" max="64" style="width: 60px;"></label>
+                <label><input type="checkbox" id="pwdUpper" checked> Uppercase</label>
+                <label><input type="checkbox" id="pwdLower" checked> Lowercase</label>
+                <label><input type="checkbox" id="pwdNumbers" checked> Numbers</label>
+                <label><input type="checkbox" id="pwdSymbols" checked> Symbols</label>
+                <br>
+                <button class="vault-btn" onclick="generatePassword()">Generate</button>
+                <div id="generatedPwd" style="margin-top: 0.5rem; color: #00ff41; font-family: monospace; word-break: break-all;"></div>
+            </div>
                 async function shredFile() {
                     const filePath = document.getElementById('shredFilePath').value;
                     const resultDiv = document.getElementById('shredResult');
@@ -776,6 +789,34 @@
             } catch (e) {
                 console.error("Steg decode failed", e);
             }
+        }
+
+        async function generatePassword() {
+            const length = parseInt(document.getElementById('pwdLength').value);
+            const upper = document.getElementById('pwdUpper').checked;
+            const lower = document.getElementById('pwdLower').checked;
+            const numbers = document.getElementById('pwdNumbers').checked;
+            const symbols = document.getElementById('pwdSymbols').checked;
+
+            let charset = '';
+            if (upper) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            if (lower) charset += 'abcdefghijklmnopqrstuvwxyz';
+            if (numbers) charset += '0123456789';
+            if (symbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+            if (!charset) {
+                alert('Select at least one character type.');
+                return;
+            }
+
+            let password = '';
+            for (let i = 0; i < length; i++) {
+                password += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+
+            const pwdDiv = document.getElementById('generatedPwd');
+            pwdDiv.innerText = password;
+            copyToClipboard(password);
         }
 
         // Clipboard Sentinel Logic
