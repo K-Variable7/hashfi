@@ -7,7 +7,7 @@ from fastapi import (
     Form,
     BackgroundTasks,
 )
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -18,19 +18,16 @@ import os
 from datetime import datetime
 import psutil
 from faker import Faker
-import io
 import subprocess
-
-
-app = FastAPI()
-fake = Faker()
-
 from hashfi.core.session import SessionManager
 from hashfi.core.monitor import ThreatMonitor
 from hashfi.sensors.system_sensor import SystemSensor
 from hashfi.sensors.file_sensor import FileIntegritySensor
 from hashfi.core.stegano import encode_lsb, decode_lsb
 from hashfi.core.shredder import secure_shred
+
+app = FastAPI()
+fake = Faker()
 
 
 # ...existing code...
@@ -271,16 +268,19 @@ async def generate_persona():
     record_activity()
     """Generates a fake persona."""
     profile = fake.profile()
-    # Filter out non-serializable fields if any (like date objects)
-    # fake.profile() usually returns date objects for birthdate
+    # Ensure birthdate is a string
     if "birthdate" in profile:
-        profile["birthdate"] = profile["birthdate"].strftime("%Y-%m-%d")
+        try:
+            profile["birthdate"] = profile["birthdate"].strftime("%Y-%m-%d")
+        except Exception:
+            profile["birthdate"] = str(profile["birthdate"])
+    # Ensure current_location is serializable
     if "current_location" in profile:
-        profile["current_location"] = (
-            float(profile["current_location"][0]),
-            float(profile["current_location"][1]),
-        )
-
+        loc = profile["current_location"]
+        if isinstance(loc, (list, tuple)) and len(loc) == 2:
+            profile["current_location"] = [str(loc[0]), str(loc[1])]
+        else:
+            profile["current_location"] = str(loc)
     add_log("Generated Fake Persona", "INFO")
     return profile
 
