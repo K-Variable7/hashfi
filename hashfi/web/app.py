@@ -36,6 +36,10 @@ fake = Faker()
 # Spread the Word API (must be after app = FastAPI())
 @app.post("/api/tools/spread")
 async def spread_the_word(background_tasks: BackgroundTasks):
+    is_serverless = os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    if is_serverless:
+        return {"message": "Spread tool disabled in serverless environment"}
+    
     def run_spread():
         try:
             result = subprocess.run(
