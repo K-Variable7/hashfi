@@ -1,0 +1,81 @@
+/* cypherpunk.css - Cypherpunk/Matrix/Terminal inspired font and effects */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+
+body, .container, input, button, textarea, select {
+    font-family: 'VT323', 'Share Tech Mono', 'Courier New', Courier, monospace !important;
+    letter-spacing: 0.5px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Share Tech Mono', 'VT323', monospace !important;
+    text-shadow: 0 0 8px #00ff41, 0 0 2px #fff, 0 0 1px #00ff41;
+    color: #00ff41;
+    letter-spacing: 2px;
+}
+
+.cypherpunk-glitch {
+    color: #00ff41;
+    position: relative;
+    display: inline-block;
+    animation: glitch 1.2s infinite linear alternate-reverse;
+}
+
+@keyframes glitch {
+    0% { text-shadow: 2px 0 #ff00c8, -2px 0 #00fff9; }
+    20% { text-shadow: -2px 0 #ff00c8, 2px 0 #00fff9; }
+    40% { text-shadow: 2px 2px #ff00c8, -2px -2px #00fff9; }
+    60% { text-shadow: -2px 2px #ff00c8, 2px -2px #00fff9; }
+    80% { text-shadow: 0 2px #ff00c8, 0 -2px #00fff9; }
+    100% { text-shadow: 2px 0 #ff00c8, -2px 0 #00fff9; }
+}
+
+input, textarea, select {
+    background: #111;
+    color: #00ff41;
+    border: 1px solid #00ff41;
+    font-size: 1.1rem;
+    padding: 0.3em 0.7em;
+    border-radius: 2px;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+}
+input:focus, textarea:focus, select:focus {
+    border: 1.5px solid #ff00c8;
+    box-shadow: 0 0 8px #ff00c8;
+}
+
+button, .btn {
+    font-family: 'VT323', 'Share Tech Mono', monospace !important;
+    background: #111;
+    color: #00ff41;
+    border: 2px solid #00ff41;
+    padding: 0.7em 2em;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+button:hover, .btn:hover {
+    background: #00ff41;
+    color: #111;
+    box-shadow: 0 0 12px #00ff41;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    background: #111;
+}
+::-webkit-scrollbar-thumb {
+    background: #00ff41;
+    border-radius: 4px;
+}
+
+/* Neon border for panels */
+.container, .status-panel, .logs-panel {
+    border: 2px solid #00ff41;
+    box-shadow: 0 0 16px #00ff41, 0 0 2px #ff00c8;
+}
+
+/* Optional: Add more cypherpunk/terminal effects as needed */

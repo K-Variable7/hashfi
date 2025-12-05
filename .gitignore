@@ -1,0 +1,57 @@
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment variables and secrets
+.env
+.env.*
+*.pem
+*.crt
+*.key
+*.p12
+
+# Databases and logs
+*.sqlite
+*.db
+*.log
+*.bak
+*.tmp
+
+# OS/Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node/npm (if any JS tooling)
+node_modules/
+
+# Jupyter/IPython
+.ipynb_checkpoints/
+
+# Misc
+*.csv
+*.json
+*.xlsx
+
+# Do not track backups or sensitive config
+config.json
+secrets.json
+
+# Ignore test artifacts
+coverage/
+*.cover
+
+# Ignore build outputs
+build/
+dist/
+
+# Ignore static cache
+static/cache/

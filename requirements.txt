@@ -1,0 +1,10 @@
+rich
+psutil
+cryptography
+fastapi
+uvicorn
+jinja2
+Pillow
+Faker
+python-multipart
+

@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HashFi Sentinel // Web Interface</title>
+    <link rel="stylesheet" href="/static/cypherpunk.css">
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --text-color: #00ff41;
+            --alert-color: #ff0000;
+            --dim-color: #003b00;
+            --panel-bg: rgba(17, 17, 17, 0.85); /* Semi-transparent for matrix effect */
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        .container {
+            width: 80%;
+            max-width: 800px;
+            text-align: center;
+            border: 2px solid var(--text-color);
+            padding: 2rem;
+            box-shadow: 0 0 20px var(--text-color);
+            background: var(--panel-bg);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        h1 {
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 10px var(--text-color);
+        }
+        .status-panel {
+            margin-bottom: 2rem;
+            border: 1px solid var(--dim-color);
+            padding: 1rem;
+        }
+        .hash-display {
+            font-size: 1.2rem;
+            word-break: break-all;
+            color: #fff;
+            margin: 1rem 0;
+        }
+        .threat-meter {
+            width: 100%;
+            height: 30px;
+            background: #333;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .threat-bar {
+            height: 100%;
+            background: var(--text-color);
+            width: 0%;
+            transition: width 0.5s ease, background-color 0.5s ease;
+        }
+        .panic-btn {
+            background: transparent;
+            border: 2px solid var(--alert-color);
+            color: var(--alert-color);
+            padding: 1rem 3rem;
+            font-size: 1.5rem;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            margin-top: 1rem;
+        }
+        .panic-btn:hover {
+            background: var(--alert-color);
+            color: #000;
+            box-shadow: 0 0 30px var(--alert-color);
+        }
+        .regen-btn {
+            background: transparent;
+            border: 2px solid var(--text-color);
+            color: var(--text-color);
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            margin-top: 1rem;
+            display: none;
+        }
+        .regen-btn:hover {
+            background: var(--text-color);
+            color: #000;
+        }
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: rgba(0, 255, 65, 0.3);
+            animation: scan 3s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes scan {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+        .burned {
+            border-color: var(--alert-color);
+            box-shadow: 0 0 20px var(--alert-color);
+        }
+        .burned h1 {
+            color: var(--alert-color);
+            text-shadow: 0 0 10px var(--alert-color);
+        }
+        .burned .threat-bar {
+            background: var(--alert-color);
+        }
+        /* Tabs */
+        .tab-nav {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--dim-color);
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--dim-color);
+            font-family: inherit;
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .tab-btn.active {
+            color: var(--text-color);
+            border-bottom: 2px solid var(--text-color);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Logs */
+        .logs-panel {
+            height: 300px;
+            overflow-y: auto;
+            text-align: left;
+            border: 1px solid var(--dim-color);
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            background: #000;
+        }
+        .log-entry {
+            margin-bottom: 0.2rem;
+            border-bottom: 1px solid #111;
+        }
+        .log-time { color: #666; margin-right: 0.5rem; }
+        .log-level-INFO { color: var(--text-color); }
+        .log-level-WARNING { color: orange; }
+        .log-level-CRITICAL { color: var(--alert-color); }
+
+        /* Glitch Effect */
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+        .glitch-active {
+            animation: glitch 0.2s infinite;
+        }
+        .glitch-active .container {
+            border-color: red;
+            box-shadow: 0 0 10px red;
+        }
+        /* Vault */
+        .vault-input {
+            background: #000;
+            border: 1px solid var(--text-color);
+            color: var(--text-color);
+            padding: 0.5rem;
+            width: 100%;
+            margin-bottom: 0.5rem;
+            font-family: inherit;
+        }
+        .vault-btn {
+            background: var(--dim-color);
+            color: var(--text-color);
+            border: 1px solid var(--text-color);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+        .vault-btn:hover {
+            background: var(--text-color);
+            color: #000;
+        }
+        .secret-list {
+            text-align: left;
+            margin-top: 1rem;
+        }
+        .secret-item {
+            border: 1px solid var(--dim-color);
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .secret-content {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border: 1px dashed var(--text-color);
+            color: #fff;
+        }
+
+        /* Footer */
+        .sentinel-footer {
+            width: 100vw;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            background: rgba(10, 10, 10, 0.98);
+            color: #00ff41;
+            text-align: center;
+            padding: 1rem 0 0.5rem 0;
+            font-size: 1.05rem;
+            box-shadow: 0 -2px 20px #003b00;
+            z-index: 100;
+        }
+        .footer-heart {
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            margin-bottom: 0.3rem;
+        }
+        .footer-heart span {
+            font-size: 1.3em;
+            vertical-align: middle;
+            color: #ff0055;
+            filter: drop-shadow(0 0 2px #ff0055);
+        }
+        .footer-btc {
+            font-size: 0.95rem;
+            color: #fff;
+        }
+        .btc-address {
+            font-family: monospace;
+            background: #222;
+            color: #00ff41;
+            padding: 2px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 8px #003b00 inset;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrixCanvas"></canvas>
+    <div class="scan-line"></div>
+    <div class="container" id="mainContainer">
+        <h1 class="cypherpunk-glitch">HashFi Sentinel</h1>
+        
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab-btn" onclick="switchTab('vault')">Data Vault</button>
+            <button class="tab-btn" onclick="switchTab('messaging')">Secure Messaging</button>
+            <button class="tab-btn" onclick="switchTab('identity')">Identity Mask</button>
+            <button class="tab-btn" onclick="switchTab('persona')">Persona</button>
+            <button class="tab-btn" onclick="switchTab('tools')">Tools</button>
+            <button class="tab-btn" onclick="switchTab('logs')">System Logs</button>
+        </div>
+        <div style="margin-bottom: 2rem;">
+            <h3>Spread the Word</h3>
+            <p style="font-size: 0.8rem; color: #888;">Help HashFi go viral! Generate an anonymous post to Reddit, Hacker News, and Twitter.</p>
+            <button class="vault-btn" onclick="spreadTheWord()">Spread the Word 🚀</button>
+            <div id="spreadResult" style="margin-top: 0.5rem; color: #fff; display: none;"></div>
+        </div>
+
+
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard-tab" class="tab-content active">
+            <div class="status-panel">
+                <div>SESSION STATUS: <span id="statusText">INITIALIZING...</span></div>
+                <div class="hash-display" id="hashDisplay">Loading...</div>
+                <div style="font-size: 0.8rem; color: #666; margin-top: 0.5rem;">
+                    ACTIVE NET CONNECTIONS: <span id="netConnections" style="color: var(--text-color)">0</span>
+                </div>
+                <div style="font-size: 0.8rem; color: #666; margin-top: 0.2rem;">
+                    SECURE WORKSPACE: <span id="sandboxPath" style="color: var(--text-color)">---</span>
+                </div>
+            </div>
+
+            <div class="threat-meter">
+                <div class="threat-bar" id="threatBar"></div>
+            </div>
+            <div id="threatText">THREAT LEVEL: 0%</div>
+
+            <button class="panic-btn" onclick="triggerPanic()">PANIC BURN</button>
+            <button class="regen-btn" id="regenBtn" onclick="regenerate()">GENERATE NEW SESSION</button>
+        </div>
+
+        <!-- VAULT TAB -->
+        <div id="vault-tab" class="tab-content">
+            <div style="margin-bottom: 1rem;">
+                <input type="text" id="secretName" class="vault-input" placeholder="Secret Name (e.g. 'wallet_seed')">
+                <input type="text" id="secretContent" class="vault-input" placeholder="Secret Content">
+                <button class="vault-btn" onclick="storeSecret()">Encrypt & Store</button>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="color: var(--text-color); font-size: 0.95em;">
+                    <input type="checkbox" id="vaultUseMsgKey" checked onchange="toggleVaultKeyMode()"> Use same key as Secure Messaging
+                </label>
+                <button class="vault-btn" onclick="exportVault()">Export Encrypted Vault</button>
+                <input type="file" id="importVaultFile" style="display:none" onchange="importVaultFile(event)">
+                <button class="vault-btn" onclick="document.getElementById('importVaultFile').click()">Import Encrypted Vault</button>
+            </div>
+            <div class="secret-list" id="secretList">
+                <!-- Secrets injected here -->
+            </div>
+        </div>
+
+        <!-- SECURE MESSAGING TAB -->
+        <div id="messaging-tab" class="tab-content">
+            <div style="margin-bottom: 1rem;">
+                <h3>Secure Messaging</h3>
+                <p style="font-size: 0.8rem; color: #888;">Send end-to-end encrypted messages. Choose a password or generate a random session key.</p>
+                <div style="margin-bottom: 0.5rem;">
+                    <label><input type="radio" name="msgKeyMode" value="password" checked onchange="toggleKeyMode()"> Password</label>
+                    <label style="margin-left:1em;"><input type="radio" name="msgKeyMode" value="random" onchange="toggleKeyMode()"> Random Key</label>
+                </div>
+                <div id="passwordKeyDiv">
+                    <input type="password" id="msgPassword" class="vault-input" placeholder="Shared Password">
+                </div>
+                <div id="randomKeyDiv" style="display:none;">
+                    <input type="text" id="msgRandomKey" class="vault-input" readonly>
+                    <button class="vault-btn" onclick="generateRandomKey()">Generate Key</button>
+                    <button class="vault-btn" onclick="copyRandomKey()">Copy</button>
+                    <canvas id="msgKeyQR" style="margin-top:0.5em;"></canvas>
+                </div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <textarea id="msgInput" class="vault-input" style="width:100%;height:60px;" placeholder="Type your message..."></textarea>
+                <button class="vault-btn" onclick="sendSecureMessage()">Encrypt & Send</button>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <textarea id="msgReceiveInput" class="vault-input" style="width:100%;height:60px;" placeholder="Paste encrypted message..."></textarea>
+                <button class="vault-btn" onclick="decryptReceivedMessage()">Decrypt</button>
+            </div>
+            <div id="msgOutput" style="margin-top:0.5em;color:#00ff41;"></div>
+        </div>
+
+        <!-- IDENTITY TAB -->
+        <div id="identity-tab" class="tab-content">
+            <div style="margin-bottom: 1rem;">
+                <h3>Ghost Credential Generator</h3>
+                <p style="font-size: 0.8rem; color: #888;">Deterministic passwords derived from your session hash.</p>
+                <input type="text" id="serviceName" class="vault-input" placeholder="Service Name (e.g. 'google')">
+                <button class="vault-btn" onclick="generateCredential()">Generate</button>
+                <div id="credentialResult" style="margin-top: 1rem; font-family: monospace; color: #00ff41; display: none;">
+                    PASSWORD: <span id="ghostPass" style="user-select: all; background: #222; padding: 2px 5px;"></span>
+                </div>
+            </div>
+            <hr style="border-color: #333;">
+            <div style="margin-top: 1rem;">
+                <h3>Sanitized Launch</h3>
+                <p style="font-size: 0.8rem; color: #888;">Launch URLs with tracking parameters stripped.</p>
+                <input type="text" id="launchUrl" class="vault-input" placeholder="Login URL">
+                <button class="vault-btn" onclick="sanitizedLaunch()">Launch</button>
+            </div>
+        </div>
+
+        <!-- LOGS TAB -->
+        <div id="logs-tab" class="tab-content">
+            <div class="logs-panel" id="logsPanel">
+                <!-- Logs injected here -->
+            </div>
+        </div>
+
+        <!-- PERSONA TAB -->
+        <div id="persona-tab" class="tab-content">
+            <div style="margin-bottom: 1rem;">
+                <h3>Fake Persona Generator</h3>
+                <p style="font-size: 0.8rem; color: #888;">Generate consistent fake identities for sign-ups.</p>
+                <button class="vault-btn" onclick="generatePersona()">Generate New Persona</button>
+                <div id="personaResult" style="margin-top: 1rem; text-align: left; display: none; border: 1px solid var(--dim-color); padding: 1rem;">
+                    <!-- Persona details injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TOOLS TAB -->
+        <div id="tools-tab" class="tab-content">
+            <div style="margin-bottom: 2rem;">
+                <h3>Steganography Lab</h3>
+                <p style="font-size: 0.8rem; color: #888;">Hide secrets inside innocent images.</p>
+                
+                <div style="border: 1px dashed var(--dim-color); padding: 1rem; margin-bottom: 1rem;">
+                    <h4>Encode</h4>
+                    <input type="text" id="stegText" class="vault-input" placeholder="Secret Message">
+                    <input type="file" id="stegInputFile" accept="image/*" style="color: var(--text-color); margin-bottom: 0.5rem;">
+                    <button class="vault-btn" onclick="stegEncode()">Embed & Download</button>
+                </div>
+
+                <div style="border: 1px dashed var(--dim-color); padding: 1rem;">
+                    <h4>Decode</h4>
+                    <input type="file" id="stegDecodeFile" accept="image/*" style="color: var(--text-color); margin-bottom: 0.5rem;">
+                    <button class="vault-btn" onclick="stegDecode()">Extract Message</button>
+                    <div id="stegResult" style="margin-top: 0.5rem; color: #fff; display: none;"></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Secure File Shredder</h3>
+                <p style="font-size: 0.8rem; color: #888;">Overwrite and destroy files beyond recovery.</p>
+                <input type="text" id="shredFilePath" class="vault-input" placeholder="Absolute File Path">
+                <button class="vault-btn" onclick="shredFile()">Shred File</button>
+                <div id="shredResult" style="margin-top: 0.5rem; color: #fff; display: none;"></div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <h3>Clipboard Sentinel</h3>
+                <p style="font-size: 0.8rem; color: #888;">Automatically clear clipboard after copying secrets.</p>
+                <label style="color: var(--text-color);">
+                    <input type="checkbox" id="clipboardSentinel" checked> Enable Auto-Clear (30s)
+                </label>
+            </div>
+                async function shredFile() {
+                    const filePath = document.getElementById('shredFilePath').value;
+                    const resultDiv = document.getElementById('shredResult');
+                    if (!filePath) {
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerText = 'Please enter a file path.';
+                        return;
+                    }
+                    try {
+                        const response = await fetch('/api/tools/shred', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({file_path: filePath})
+                        });
+                        if (response.ok) {
+                            resultDiv.style.display = 'block';
+                            resultDiv.innerText = 'File shredded successfully.';
+                        } else {
+                            const data = await response.json();
+                            resultDiv.style.display = 'block';
+                            resultDiv.innerText = 'Error: ' + (data.detail || 'Failed to shred file.');
+                        }
+                    } catch (e) {
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerText = 'Error: ' + e;
+                    }
+                }
+        </div>
+    </div>
+    <footer class="sentinel-footer">
+        <div class="footer-heart">Made with <span>❤️</span> for privacy</div>
+        <div class="footer-btc">Donate BTC: <span class="btc-address">bc1qf2j96j70j9I3cs3gh8048mgxpg3su5ydse6z9m</span></div>
+    </footer>
+
+    <script>
+        const statusText = document.getElementById('statusText');
+        const hashDisplay = document.getElementById('hashDisplay');
+        const threatBar = document.getElementById('threatBar');
+        const threatText = document.getElementById('threatText');
+        const mainContainer = document.getElementById('mainContainer');
+        const regenBtn = document.getElementById('regenBtn');
+        const panicBtn = document.querySelector('.panic-btn');
+        const netConnections = document.getElementById('netConnections');
+        const sandboxPath = document.getElementById('sandboxPath');
+        const logsPanel = document.getElementById('logsPanel');
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function updateUI(data) {
+            // Update Network Stats
+            if (data.net_connections !== undefined) {
+                netConnections.innerText = data.net_connections;
+            }
+            if (data.sandbox) {
+                sandboxPath.innerText = data.sandbox;
+            } else {
+                sandboxPath.innerText = "DESTROYED";
+            }
+
+            if (data.is_active) {
+                statusText.innerText = "ACTIVE";
+                statusText.style.color = "#00ff41";
+                hashDisplay.innerText = data.hash;
+                
+                const threatPct = Math.round(data.threat_level * 100);
+                threatBar.style.width = threatPct + "%";
+                threatText.innerText = "THREAT LEVEL: " + threatPct + "%";
+                
+                if (threatPct > 80) {
+                    threatBar.style.backgroundColor = "orange";
+                } else {
+                    threatBar.style.backgroundColor = "#00ff41";
+                }
+                
+                // Glitch Effect
+                if (threatPct > 50) {
+                    document.body.classList.add('glitch-active');
+                } else {
+                    document.body.classList.remove('glitch-active');
+                }
+
+                mainContainer.classList.remove('burned');
+                regenBtn.style.display = 'none';
+                panicBtn.style.display = 'inline-block';
+            } else {
+                statusText.innerText = "BURNED";
+                statusText.style.color = "red";
+                hashDisplay.innerText = "SESSION DATA WIPED";
+                hashDisplay.style.textDecoration = "line-through";
+                
+                threatBar.style.width = "100%";
+                threatBar.style.backgroundColor = "red";
+                threatText.innerText = "THREAT LEVEL: CRITICAL";
+                
+                document.body.classList.remove('glitch-active'); // Stop glitch on burn? Or keep it? Let's stop it.
+
+                mainContainer.classList.add('burned');
+                regenBtn.style.display = 'inline-block';
+                panicBtn.style.display = 'none';
+            }
+        }
+
+        async function pollStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                updateUI(data);
+            } catch (e) {
+                console.error("Connection lost", e);
+            }
+        }
+
+        async function pollLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const logs = await response.json();
+                
+                logsPanel.innerHTML = logs.map(log => `
+                    <div class="log-entry">
+                        <span class="log-time">[${log.time}]</span>
+                        <span class="log-level-${log.level}">${log.level}</span>: 
+                        <span class="log-msg">${log.message}</span>
+                    </div>
+                `).reverse().join('');
+            } catch (e) {
+                console.error("Log fetch failed", e);
+            }
+        }
+
+        async function storeSecret() {
+            const name = document.getElementById('secretName').value;
+            const content = document.getElementById('secretContent').value;
+            if (!name || !content) return;
+
+            await fetch('/api/vault', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, content})
+            });
+            document.getElementById('secretName').value = '';
+            document.getElementById('secretContent').value = '';
+            loadSecrets();
+        }
+
+        async function loadSecrets() {
+            try {
+                const response = await fetch('/api/vault');
+                const data = await response.json();
+                const list = document.getElementById('secretList');
+                
+                list.innerHTML = data.secrets.map(name => {
+                    // Create a safe ID for the DOM element
+                    const safeId = 'secret-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+                    // Escape single quotes for the onclick handler
+                    const safeName = name.replace(/'/g, "\\'");
+                    
+                    return `
+                    <div class="secret-item">
+                        <span>${name}</span>
+                        <button class="vault-btn" style="font-size: 0.8rem;" onclick="revealSecret('${safeName}', '${safeId}')">Decrypt</button>
+                    </div>
+                    <div id="${safeId}" class="secret-content"></div>
+                `}).join('');
+            } catch (e) {
+                console.error("Vault fetch failed", e);
+            }
+        }
+
+        async function revealSecret(name, elementId) {
+            const el = document.getElementById(elementId);
+            if (el.style.display === 'block') {
+                el.style.display = 'none';
+                return;
+            }
+            
+            // Use encodeURIComponent to handle special characters in the URL
+            const response = await fetch(`/api/vault/${encodeURIComponent(name)}`);
+            if (response.ok) {
+                const data = await response.json();
+                el.innerText = data.content;
+                el.style.display = 'block';
+            } else {
+                alert("Failed to decrypt! Session may be burned.");
+            }
+        }
+
+        async function generateCredential() {
+            const serviceName = document.getElementById('serviceName').value;
+            if (!serviceName) return;
+
+            try {
+                const response = await fetch('/api/identity/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({service_name: serviceName})
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const passEl = document.getElementById('ghostPass');
+                    passEl.innerText = data.credential;
+                    document.getElementById('credentialResult').style.display = 'block';
+                } else {
+                    alert("Failed to generate credential. Session may be burned.");
+                }
+            } catch (e) {
+                console.error("Identity gen failed", e);
+            }
+        }
+
+        function sanitizedLaunch() {
+            let url = document.getElementById('launchUrl').value;
+            if (!url) return;
+            
+            if (!url.startsWith('http')) {
+                url = 'https://' + url;
+            }
+
+            try {
+                const urlObj = new URL(url);
+                // Strip common tracking params
+                const paramsToStrip = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', '_ga', 'msclkid'];
+                paramsToStrip.forEach(param => urlObj.searchParams.delete(param));
+                
+                window.open(urlObj.toString(), '_blank');
+            } catch (e) {
+                alert("Invalid URL");
+            }
+        }
+
+        async function triggerPanic() {
+            await fetch('/api/panic', { method: 'POST' });
+            pollStatus(); // Immediate update
+            // No redirect
+        }
+
+        async function regenerate() {
+            await fetch('/api/regenerate', { method: 'POST' });
+            pollStatus();
+            loadSecrets(); // Clear secrets list
+        }
+
+        async function generatePersona() {
+            try {
+                const response = await fetch('/api/persona/generate');
+                const data = await response.json();
+                
+                const resultDiv = document.getElementById('personaResult');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <p><strong>Name:</strong> ${data.name}</p>
+                    <p><strong>Address:</strong> ${data.address}</p>
+                    <p><strong>Email:</strong> ${data.mail}</p>
+                    <p><strong>Job:</strong> ${data.job}</p>
+                    <p><strong>Birthdate:</strong> ${data.birthdate}</p>
+                    <p><strong>SSN:</strong> ${data.ssn}</p>
+                `;
+            } catch (e) {
+                console.error("Persona gen failed", e);
+            }
+        }
+
+        async function stegEncode() {
+            const text = document.getElementById('stegText').value;
+            const fileInput = document.getElementById('stegInputFile');
+            
+            if (!text || !fileInput.files[0]) {
+                alert("Please provide both text and an image.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/tools/stegano/encode', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "secret_image.png";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                } else {
+                    alert("Encoding failed.");
+                }
+            } catch (e) {
+                console.error("Steg encode failed", e);
+            }
+        }
+
+        async function stegDecode() {
+            const fileInput = document.getElementById('stegDecodeFile');
+            if (!fileInput.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/tools/stegano/decode', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const resDiv = document.getElementById('stegResult');
+                    resDiv.style.display = 'block';
+                    resDiv.innerText = "DECODED: " + data.text;
+                } else {
+                    alert("Decoding failed.");
+                }
+            } catch (e) {
+                console.error("Steg decode failed", e);
+            }
+        }
+
+        // Clipboard Sentinel Logic
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const sentinelEnabled = document.getElementById('clipboardSentinel').checked;
+                if (sentinelEnabled) {
+                    setTimeout(() => {
+                        navigator.clipboard.writeText(' '); // Clear clipboard
+                        console.log("Clipboard cleared by Sentinel.");
+                    }, 30000); // 30 seconds
+                }
+            });
+        }
+
+        // Override revealSecret to use copyToClipboard if we want (optional)
+        // For now, let's just hook into the ghost credential copy
+        
+        // Update generateCredential to use copy helper if user clicks on it?
+        // Or just leave it as manual copy. 
+        // Let's add a click-to-copy for the ghost pass.
+        
+        document.getElementById('ghostPass').addEventListener('click', function() {
+            copyToClipboard(this.innerText);
+            alert("Copied! Clipboard will clear in 30s.");
+        });
+
+        setInterval(pollStatus, 1000);
+        setInterval(pollLogs, 2000); // Poll logs every 2s
+        pollStatus();
+        pollLogs();
+        loadSecrets();
+
+        // Matrix Rain Effect
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+        const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const nums = '0123456789';
+        const alphabet = katakana + latin + nums;
+
+        const fontSize = 16;
+        const columns = canvas.width/fontSize;
+
+        const rainDrops = [];
+
+        for( let x = 0; x < columns; x++ ) {
+            rainDrops[x] = 1;
+        }
+
+        const draw = () => {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#0F0'; // Green text
+            ctx.font = fontSize + 'px monospace';
+
+            for(let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i*fontSize, rainDrops[i]*fontSize);
+
+                if(rainDrops[i]*fontSize > canvas.height && Math.random() > 0.975){
+                    rainDrops[i] = 0;
+                }
+                rainDrops[i]++;
+            }
+        };
+
+        setInterval(draw, 30);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+    <script src="/static/tools.js"></script>
+</body>
+</html>
