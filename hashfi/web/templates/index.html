@@ -517,6 +517,15 @@
                 <label><input type="checkbox" id="soundToggle" checked> Enable Sounds</label>
                 <label><input type="checkbox" id="glitchToggle" checked> Enhanced Glitch</label>
             </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Blockchain Timestamping</h3>
+                <p style="font-size: 0.8rem; color: #888;">Anchor data to blockchain for immutable proof.</p>
+                <textarea id="timestampData" class="vault-input" placeholder="Data to timestamp..." rows="3"></textarea>
+                <br>
+                <button class="vault-btn" onclick="timestampData()">Timestamp</button>
+                <div id="timestampResult" style="margin-top: 0.5rem; color: #00ff41; font-family: monospace; word-break: break-all;"></div>
+            </div>
                 async function shredFile() {
                     const filePath = document.getElementById('shredFilePath').value;
                     const resultDiv = document.getElementById('shredResult');
@@ -1058,6 +1067,20 @@
                 body.classList.remove('enhanced-glitch');
             }
         });
+
+        // Blockchain Timestamping
+        async function timestampData() {
+            const data = document.getElementById('timestampData').value;
+            if (!data) return;
+            const enc = new TextEncoder();
+            const hashBuffer = await window.crypto.subtle.digest('SHA-256', enc.encode(data));
+            const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+            const timestamp = new Date().toISOString();
+            // Mock blockchain submission - in real app, submit hash to BTC/Ethereum
+            const mockTxHash = 'btc_' + hash.slice(0, 16) + '_timestamped';
+            document.getElementById('timestampResult').innerText = `Data timestamped on Blockchain!\nHash: ${hash}\nTimestamp: ${timestamp}\nMock TX: ${mockTxHash}\n\n(Note: For production, integrate with real blockchain API like OpenTimestamps or BlockCypher.)`;
+            playSound();
+        }
 
         // Clipboard Sentinel Logic
         function copyToClipboard(text) {
