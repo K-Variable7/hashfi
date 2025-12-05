@@ -98,7 +98,7 @@ session_manager = SessionManager()
 monitor = ThreatMonitor(threshold=0.9)
 monitor.add_sensor(SystemSensor())
 # Monitor the project root for unauthorized changes (skip in serverless)
-is_serverless = os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+is_serverless = os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
 if not is_serverless:
     monitor.add_sensor(FileIntegritySensor(target_dir=project_root))
 
@@ -153,7 +153,7 @@ def monitor_loop():
 
 
 # Start monitor in background thread (skip in serverless environments)
-is_serverless = os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+is_serverless = os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
 if not is_serverless:
     monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
     monitor_thread.start()
@@ -172,9 +172,13 @@ monitor.on_threshold_breach = on_breach
 
 @app.on_event("startup")
 async def startup_event():
-    add_log("System Startup. Initializing Session...", "INFO")
-    session_manager.start_session()
-    add_log(f"Session Active. Hash: {session_manager.get_hash()[:8]}...", "INFO")
+    try:
+        add_log("System Startup. Initializing Session...", "INFO")
+        session_manager.start_session()
+        add_log(f"Session Active. Hash: {session_manager.get_hash()[:8]}...", "INFO")
+    except Exception as e:
+        add_log(f"Startup failed: {str(e)}", "CRITICAL")
+        print(f"Startup error: {e}")  # For debugging
 
 
 @app.get("/", response_class=HTMLResponse)
