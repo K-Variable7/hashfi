@@ -461,6 +461,46 @@
                 <button class="vault-btn" onclick="generatePassword()">Generate</button>
                 <div id="generatedPwd" style="margin-top: 0.5rem; color: #00ff41; font-family: monospace; word-break: break-all;"></div>
             </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Secure Notes</h3>
+                <p style="font-size: 0.8rem; color: #888;">Encrypted notepad for private thoughts.</p>
+                <textarea id="noteContent" class="vault-input" placeholder="Your secure note..." rows="4"></textarea>
+                <br>
+                <button class="vault-btn" onclick="saveNote()">Save Note</button>
+                <button class="vault-btn" onclick="loadNote()">Load Note</button>
+                <div id="noteStatus" style="margin-top: 0.5rem; color: #fff;"></div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>File Encryption</h3>
+                <p style="font-size: 0.8rem; color: #888;">Encrypt/decrypt files with AES-GCM.</p>
+                <div style="border: 1px dashed var(--dim-color); padding: 1rem; margin-bottom: 1rem;">
+                    <h4>Encrypt File</h4>
+                    <input type="file" id="encryptFile" style="color: var(--text-color);">
+                    <button class="vault-btn" onclick="encryptFile()">Encrypt & Download</button>
+                </div>
+                <div style="border: 1px dashed var(--dim-color); padding: 1rem;">
+                    <h4>Decrypt File</h4>
+                    <input type="file" id="decryptFile" style="color: var(--text-color);">
+                    <button class="vault-btn" onclick="decryptFile()">Decrypt & Download</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Vault Backup/Restore</h3>
+                <p style="font-size: 0.8rem; color: #888;">Export/import encrypted vault data.</p>
+                <button class="vault-btn" onclick="exportVault()">Export Vault</button>
+                <input type="file" id="importVaultFile" accept=".json" style="color: var(--text-color); margin-left: 1rem;">
+                <button class="vault-btn" onclick="importVault()">Import Vault</button>
+                <div id="backupStatus" style="margin-top: 0.5rem; color: #fff;"></div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3>Tor Integration</h3>
+                <p style="font-size: 0.8rem; color: #888;">For maximum anonymity, use Tor Browser.</p>
+                <button class="vault-btn" onclick="openTorGuide()">Tor Guide</button>
+            </div>
                 async function shredFile() {
                     const filePath = document.getElementById('shredFilePath').value;
                     const resultDiv = document.getElementById('shredResult');
@@ -817,6 +857,142 @@
             const pwdDiv = document.getElementById('generatedPwd');
             pwdDiv.innerText = password;
             copyToClipboard(password);
+        }
+
+        // Secure Notes
+        async function saveNote() {
+            const content = document.getElementById('noteContent').value;
+            if (!content) return;
+            await fetch('/api/vault', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: 'secure_note', content})
+            });
+            document.getElementById('noteStatus').innerText = 'Note saved.';
+        }
+
+        async function loadNote() {
+            try {
+                const response = await fetch('/api/vault/secure_note');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('noteContent').value = data.content;
+                    document.getElementById('noteStatus').innerText = 'Note loaded.';
+                } else {
+                    document.getElementById('noteStatus').innerText = 'No note found.';
+                }
+            } catch (e) {
+                document.getElementById('noteStatus').innerText = 'Error loading note.';
+            }
+        }
+
+        // File Encryption
+        async function encryptFile() {
+            const fileInput = document.getElementById('encryptFile');
+            if (!fileInput.files[0]) return;
+            const file = fileInput.files[0];
+            const arrayBuffer = await file.arrayBuffer();
+            const key = await deriveKey(prompt('Enter encryption password:'));
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const ciphertext = await window.crypto.subtle.encrypt(
+                {name: 'AES-GCM', iv}, key, arrayBuffer
+            );
+            const blob = new Blob([iv, new Uint8Array(ciphertext)], {type: 'application/octet-stream'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name + '.enc';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function decryptFile() {
+            const fileInput = document.getElementById('decryptFile');
+            if (!fileInput.files[0]) return;
+            const file = fileInput.files[0];
+            const arrayBuffer = await file.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const iv = data.slice(0, 12);
+            const ciphertext = data.slice(12);
+            const key = await deriveKey(prompt('Enter decryption password:'));
+            try {
+                const plaintext = await window.crypto.subtle.decrypt(
+                    {name: 'AES-GCM', iv}, key, ciphertext
+                );
+                const blob = new Blob([plaintext], {type: 'application/octet-stream'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name.replace('.enc', '');
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Decryption failed. Wrong password?');
+            }
+        }
+
+        // Vault Backup/Restore
+        async function exportVault() {
+            try {
+                const response = await fetch('/api/vault');
+                const data = await response.json();
+                const vault = {};
+                for (const name of data.secrets) {
+                    const res = await fetch(`/api/vault/${encodeURIComponent(name)}`);
+                    if (res.ok) {
+                        const secret = await res.json();
+                        vault[name] = secret.content;
+                    }
+                }
+                const key = await deriveKey(prompt('Enter export password:'));
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const enc = new TextEncoder();
+                const ciphertext = await window.crypto.subtle.encrypt(
+                    {name: 'AES-GCM', iv}, key, enc.encode(JSON.stringify(vault))
+                );
+                const blob = new Blob([iv, new Uint8Array(ciphertext)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'vault_backup.enc';
+                a.click();
+                URL.revokeObjectURL(url);
+                document.getElementById('backupStatus').innerText = 'Vault exported.';
+            } catch (e) {
+                document.getElementById('backupStatus').innerText = 'Export failed.';
+            }
+        }
+
+        async function importVault() {
+            const fileInput = document.getElementById('importVaultFile');
+            if (!fileInput.files[0]) return;
+            const file = fileInput.files[0];
+            const arrayBuffer = await file.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const iv = data.slice(0, 12);
+            const ciphertext = data.slice(12);
+            const key = await deriveKey(prompt('Enter import password:'));
+            try {
+                const plaintext = await window.crypto.subtle.decrypt(
+                    {name: 'AES-GCM', iv}, key, ciphertext
+                );
+                const vault = JSON.parse(new TextDecoder().decode(plaintext));
+                for (const [name, content] of Object.entries(vault)) {
+                    await fetch('/api/vault', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({name, content})
+                    });
+                }
+                document.getElementById('backupStatus').innerText = 'Vault imported.';
+                loadSecrets(); // Refresh vault list
+            } catch (e) {
+                document.getElementById('backupStatus').innerText = 'Import failed. Wrong password?';
+            }
+        }
+
+        function openTorGuide() {
+            window.open('https://www.torproject.org/download/', '_blank');
         }
 
         // Clipboard Sentinel Logic
